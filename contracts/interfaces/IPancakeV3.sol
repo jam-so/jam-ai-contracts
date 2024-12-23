@@ -3,16 +3,16 @@ pragma solidity ^0.8.26;
 
 import {IERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions/IERC721Enumerable.sol';
 
-interface IUniswapV3Factory {
+interface IPancakeV3Factory {
     function createPool(address tokenA, address tokenB, uint24 fee) external returns (address pool);
     function feeAmountTickSpacing(uint24 fee) external view returns (int24);
 }
 
-interface IUniswapV3Pool {
+interface IPancakeV3Pool {
     function initialize(uint160 sqrtPriceX96) external;
 }
 
-interface IUniswapV3SwapRouter {
+interface IPancakeV3SwapRouter {
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;

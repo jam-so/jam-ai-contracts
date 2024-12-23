@@ -7,114 +7,107 @@ import {IJammer} from "./interfaces/IJammer.sol";
 import {Ownable2Step} from "./access/Ownable2Step.sol";
 import {TickMath} from "./libraries/TickMath.sol";
 import {ILPTreasury} from "./interfaces/ILPTreasury.sol";
-import {Bytes32AddressLib} from "./libraries/Bytes32AddressLib.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {
-    IUniswapV3Factory,
-    IUniswapV3Pool,
-    IUniswapV3SwapRouter,
+    IPancakeV3Factory,
+    IPancakeV3Pool,
+    IPancakeV3SwapRouter,
     INonfungiblePositionManager
-} from "./interfaces/IUniswapV3.sol";
+} from "./interfaces/IPancakeV3.sol";
 
 contract Jammer is Ownable2Step, IJammer {
     using TickMath for int24;
-    using Bytes32AddressLib for bytes32;
 
     address public feeTo;
     uint64 public defaultLockingPeriod = 94608000;
+    uint24 public immutable POOL_FEE = 10000; // 1%
 
+    IJamAI public jamAI;
     ILPTreasury public lpTreasury;
 
     address public immutable WETH;
-    IUniswapV3Factory public immutable uniswapV3Factory;
+    IPancakeV3Factory public immutable pancakeV3Factory;
     INonfungiblePositionManager public immutable positionManager;
-    address public immutable swapRouter;
 
-    bool public deprecated;
-
-    event TokenCreated(
-        address tokenAddress,
-        uint256 lpTokenId,
-        string name,
-        string symbol,
-        uint256 supply
-    );
-
-    error Deprecated();
-    error InvalidTick();
-    error InvalidSalt();
+    modifier onlyJamAI() {
+        if (msg.sender != address(jamAI))
+            revert Unauthorized();
+        _;
+    }
 
     constructor(
         address feeTo_,
+        address jamAI_,
         address lpTreasury_,
         address WETH_,
-        address uniswapV3Factory_,
-        address positionManager_,
-        address swapRouter_
+        address pancakeV3Factory_,
+        address positionManager_
     ) {
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
+        require(jamAI_ != address(0), "JamAI cannot be zero address");
         require(lpTreasury_ != address(0), "LPTreasury cannot be zero address");
         require(WETH_ != address(0), "WETH cannot be zero address");
-        require(uniswapV3Factory_ != address(0), "UniswapV3Factory cannot be zero address");
+        require(pancakeV3Factory_ != address(0), "PancakeV3Factory cannot be zero address");
         require(positionManager_ != address(0), "PositionManager cannot be zero address");
-        require(swapRouter_ != address(0), "SwapRouter cannot be zero address");
 
         feeTo = feeTo_;
+        jamAI = IJamAI(jamAI_);
         lpTreasury = ILPTreasury(lpTreasury_);
         WETH = WETH_;
-        uniswapV3Factory = IUniswapV3Factory(uniswapV3Factory_);
+        pancakeV3Factory = IPancakeV3Factory(pancakeV3Factory_);
         positionManager = INonfungiblePositionManager(positionManager_);
-        swapRouter = swapRouter_;
     }
 
     function deployTokenAndPool(
-        string calldata name, string calldata symbol, uint256 supply,
-        bytes32 salt, uint256 aiAgentID,
-        int24 initialTick, uint24 poolFee
-    ) external payable onlyOwner returns (address) {
-        if (deprecated) revert Deprecated();
-
+        string calldata name,
+        string calldata symbol,
+        bytes32 salt,
+        uint256 aiAgentID
+    ) external payable onlyJamAI returns (address) {
         Token token = new Token{
             salt: keccak256(abi.encode(aiAgentID, salt))
         }(
-            name, symbol, supply, IJamAI(msg.sender), aiAgentID
+            name, symbol, jamAI, aiAgentID
         );
 
         if (address(token) >= WETH) revert InvalidSalt();
 
-        (address pool, uint256 lpTokenId) = _createPool(initialTick, token, poolFee, supply);
+        (address pool, uint256 lpTokenId) = _createPool(token);
 
         emit TokenCreated(
             address(token),
             lpTokenId,
             name,
             symbol,
-            supply
+            token.totalSupply()
         );
 
         return pool;
     }
 
-    function _createPool(
-        int24 initialTick, Token token, uint24 poolFee, uint256 supply
-    ) internal returns (address, uint256) {
-        int24 tickSpacing = uniswapV3Factory.feeAmountTickSpacing(poolFee);
-        if (tickSpacing == 0 || initialTick % tickSpacing != 0) revert InvalidTick();
+    function _createPool(Token token) internal returns (address, uint256) {
+        int24 tickSpacing = pancakeV3Factory.feeAmountTickSpacing(POOL_FEE);
+        if (tickSpacing == 0) revert InvalidTick();
 
-        uint160 sqrtPriceX96 = initialTick.getSqrtRatioAtTick();
-        address pool = uniswapV3Factory.createPool(address(token), WETH, poolFee);
-        IUniswapV3Pool(pool).initialize(sqrtPriceX96);
+        address pool = pancakeV3Factory.createPool(address(token), WETH, POOL_FEE);
 
-        token.approve(address(positionManager), supply);
+        uint256 tokenAmountIn = token.totalSupply() / 2;
+        uint256 ethAmountIn = msg.value;
+
+        uint160 sqrtPriceX96 = calcSqrtPriceX96(tokenAmountIn, ethAmountIn);
+        IPancakeV3Pool(pool).initialize(sqrtPriceX96);
+
+        token.approve(address(positionManager), tokenAmountIn);
 
         (uint256 lpTokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams(
                 address(token),
                 WETH,
-                poolFee,
-                initialTick,
+                POOL_FEE,
+                minUsableTick(tickSpacing),
                 maxUsableTick(tickSpacing),
-                supply,
-                0,
+                tokenAmountIn,
+                ethAmountIn,
                 0,
                 0,
                 address(this),
@@ -125,21 +118,56 @@ contract Jammer is Ownable2Step, IJammer {
         positionManager.approve(address(lpTreasury), lpTokenId);
         lpTreasury.lock(lpTokenId, defaultLockingPeriod);
 
-        IUniswapV3SwapRouter(swapRouter).exactInputSingle{value: msg.value}(
-            IUniswapV3SwapRouter.ExactInputSingleParams({
-                tokenIn: WETH,
-                tokenOut: address(token),
-                fee: poolFee,
-                recipient: address(token),
-                amountIn: msg.value,
-                amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0
-            })
-        );
-
+        token.transfer(address(token), token.balanceOf(address(this)));
         token.initialize();
 
         return (pool, lpTokenId);
+    }
+
+    function calcSqrtPriceX96(
+        uint256 tokenAmountIn,
+        uint256 ethAmountIn
+    ) internal pure returns (uint160) {
+        uint256 p = tokenAmountIn * 10**18 / ethAmountIn;
+        return uint160(Math.sqrt(p)) / 10**9;
+    }
+
+    function deployDataValid(
+        uint256 aiAgentID,
+        bytes32 salt,
+        string calldata name,
+        string calldata symbol
+    ) external view returns (bool) {
+        address tokenAddr = predictToken(
+            aiAgentID, salt, name, symbol
+        );
+
+        return tokenAddr < WETH;
+    }
+
+     function predictToken(
+        uint256 aiAgentId,
+        bytes32 salt,
+        string calldata name,
+        string calldata symbol
+    ) public view returns (address) {
+        bytes32 create2Salt = keccak256(abi.encode(aiAgentId, salt));
+
+        bytes memory packed = abi.encodePacked(
+            type(Token).creationCode,
+            abi.encode(name, symbol, address(jamAI), aiAgentId)
+        );
+
+        bytes32 data = keccak256(
+            abi.encodePacked(
+                bytes1(0xFF),
+                address(this),
+                create2Salt,
+                keccak256(packed)
+            )
+        );
+
+        return address(uint160(uint256(data)));
     }
 
     function setFeeTo(address feeTo_) external onlyOwner {
@@ -151,13 +179,20 @@ contract Jammer is Ownable2Step, IJammer {
         defaultLockingPeriod = defaultLockingPeriod_;
     }
 
+    function setJamAI(address jamAI_) external onlyOwner {
+        require(jamAI_ != address(0), "JamAI cannot be zero address");
+        jamAI = IJamAI(jamAI_);
+    }
+
     function setLPTreasury(address lpTreasury_) external onlyOwner {
         require(lpTreasury_ != address(0), "LPTreasury cannot be zero address");
         lpTreasury = ILPTreasury(lpTreasury_);
     }
 
-    function setDeprecated(bool deprecated_) external onlyOwner {
-        deprecated = deprecated_;
+    function minUsableTick(int24 tickSpacing) internal pure returns (int24) {
+        unchecked {
+            return (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
+        }
     }
 
     function maxUsableTick(int24 tickSpacing) internal pure returns (int24) {
