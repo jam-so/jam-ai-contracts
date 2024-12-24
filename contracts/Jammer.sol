@@ -16,7 +16,7 @@ import {
 } from "./interfaces/IPancakeV3.sol";
 
 contract Jammer is Ownable2Step, IJammer {
-    using TickMath for int24;
+    using TickMath for uint160;
 
     address public feeTo;
     uint64 public defaultLockingPeriod = 94608000;
@@ -27,6 +27,7 @@ contract Jammer is Ownable2Step, IJammer {
     address public immutable WETH;
     IPancakeV3Factory public immutable pancakeV3Factory;
     INonfungiblePositionManager public immutable positionManager;
+    IPancakeV3SwapRouter public immutable swapRouter;
 
     uint24 public immutable POOL_FEE = 10000;
 
@@ -42,7 +43,8 @@ contract Jammer is Ownable2Step, IJammer {
         address lpTreasury_,
         address WETH_,
         address pancakeV3Factory_,
-        address positionManager_
+        address positionManager_,
+        address swapRouter_
     ) {
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
         require(jamAI_ != address(0), "JamAI cannot be zero address");
@@ -50,6 +52,7 @@ contract Jammer is Ownable2Step, IJammer {
         require(WETH_ != address(0), "WETH cannot be zero address");
         require(pancakeV3Factory_ != address(0), "PancakeV3Factory cannot be zero address");
         require(positionManager_ != address(0), "PositionManager cannot be zero address");
+        require(swapRouter_ != address(0), "SwapRouter cannot be zero address");
 
         feeTo = feeTo_;
         jamAI = IJamAI(jamAI_);
@@ -57,6 +60,7 @@ contract Jammer is Ownable2Step, IJammer {
         WETH = WETH_;
         pancakeV3Factory = IPancakeV3Factory(pancakeV3Factory_);
         positionManager = INonfungiblePositionManager(positionManager_);
+        swapRouter = IPancakeV3SwapRouter(swapRouter_);
     }
 
     function deployTokenAndPool(
@@ -90,33 +94,46 @@ contract Jammer is Ownable2Step, IJammer {
     function _createPool(Token token) internal returns (address, uint256) {
         address pool = pancakeV3Factory.createPool(address(token), WETH, POOL_FEE);
 
-        uint256 tokenAmountIn = token.totalSupply() / 2;
+        uint256 tokenAmountIn = token.balanceOf(address(this));
         uint256 ethAmountIn = msg.value;
 
-        uint256 price = tokenAmountIn * 10**18 / ethAmountIn;
-        uint160 sqrtPriceX96 = uint160(Math.sqrt(price)) * 2**96 / 10**9;
+        uint256 p = ethAmountIn * 10**18 / tokenAmountIn;
+        uint160 sqrtPriceX96 = uint160(Math.sqrt(p) * 2**96 / 10**9);
+
+        int24 initialTick = sqrtPriceX96.getTickAtSqrtRatio();
+        int24 tickSpacing = pancakeV3Factory.feeAmountTickSpacing(POOL_FEE);
+        initialTick = initialTick / tickSpacing * tickSpacing;
 
         IPancakeV3Pool(pool).initialize(sqrtPriceX96);
 
         token.approve(address(positionManager), tokenAmountIn);
-
-        int24 tickSpacing = pancakeV3Factory.feeAmountTickSpacing(POOL_FEE);
 
         (uint256 lpTokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams(
                 address(token),
                 WETH,
                 POOL_FEE,
-                minUsableTick(tickSpacing),
+                initialTick,
                 maxUsableTick(tickSpacing),
                 tokenAmountIn,
-                ethAmountIn,
+                0,
                 0,
                 0,
                 address(this),
                 block.timestamp
             )
         );
+
+        swapRouter.exactInputSingle{value: ethAmountIn}(IPancakeV3SwapRouter.ExactInputSingleParams(
+            WETH,
+            address(token),
+            POOL_FEE,
+            address(this),
+            block.timestamp,
+            ethAmountIn,
+            0,
+            0
+        ));
 
         positionManager.approve(address(lpTreasury), lpTokenId);
         lpTreasury.lock(lpTokenId, defaultLockingPeriod);
@@ -140,18 +157,16 @@ contract Jammer is Ownable2Step, IJammer {
         )
             return false;
 
-        address tokenAddr = predictToken(
-            aiAgentID, salt, name, symbol
-        );
+        address tokenAddr = predictToken(aiAgentID, name, symbol, salt);
 
         return tokenAddr < WETH;
     }
 
      function predictToken(
         uint256 aiAgentId,
-        bytes32 salt,
         string calldata name,
-        string calldata symbol
+        string calldata symbol,
+        bytes32 salt
     ) public view returns (address) {
         bytes32 create2Salt = keccak256(abi.encode(aiAgentId, salt));
 

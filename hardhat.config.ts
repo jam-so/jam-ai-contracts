@@ -1,5 +1,4 @@
 import "@nomicfoundation/hardhat-toolbox";
-// import "@nomiclabs/hardhat-ethers";
 import { HardhatUserConfig } from "hardhat/config";
 import { existsSync, readFileSync } from 'fs';
 import { chain, chainID } from "./constants";

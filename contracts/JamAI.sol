@@ -24,7 +24,7 @@ contract JamAI is IJamAI, Ownable2Step {
     // AI Agent ID => Pool Address
     mapping(uint256 => address) public pools;
     // AI Agent ID => Token Info
-    mapping(uint256 => TokenInfo) public tokens;
+    mapping(uint256 => TokenInfo) public preTokenInfo;
 
     bool public sellEnabled = false;
 
@@ -106,9 +106,9 @@ contract JamAI is IJamAI, Ownable2Step {
 
         if (creator == address(0) || amount == 0) revert InvalidMessage();
 
-        tokens[aiAgentId].name = name;
-        tokens[aiAgentId].symbol = symbol;
-        tokens[aiAgentId].salt = salt;
+        preTokenInfo[aiAgentId].name = name;
+        preTokenInfo[aiAgentId].symbol = symbol;
+        preTokenInfo[aiAgentId].salt = salt;
 
         tradeEnabled[aiAgentId] = true;
         _buyTickets(creator, aiAgentId, 1);
@@ -166,7 +166,7 @@ contract JamAI is IJamAI, Ownable2Step {
 
         uint256 ethAmountIn = getPrice(0, ticketsSupply[aiAgentId]);
 
-        TokenInfo memory tokenInfo = tokens[aiAgentId];
+        TokenInfo memory tokenInfo = preTokenInfo[aiAgentId];
 
         address pool = jammer.deployTokenAndPool{value: ethAmountIn}(
             tokenInfo.name,
@@ -228,6 +228,6 @@ contract JamAI is IJamAI, Ownable2Step {
         if (!jammer.deployDataValid(aiAgentId, newName, newSymbol, newSalt))
             revert InvalidTokenInfo();
 
-        tokens[aiAgentId].salt = newSalt;
+        preTokenInfo[aiAgentId].salt = newSalt;
     }
 }

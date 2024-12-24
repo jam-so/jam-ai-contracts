@@ -31,8 +31,8 @@ interface IJammer {
 
     function predictToken(
         uint256 aiAgentId,
-        bytes32 salt,
         string calldata name,
-        string calldata symbol
+        string calldata symbol,
+        bytes32 salt
     ) external view returns (address);
 }
