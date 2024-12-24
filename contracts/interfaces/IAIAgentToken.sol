@@ -3,7 +3,7 @@ pragma solidity ^0.8.26;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-interface IToken is IERC20 {
+interface IAIAgentToken is IERC20 {
     event Claimed(address indexed to, uint256 amount);
 
     error AlreadyInitialized();

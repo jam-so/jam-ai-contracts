@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.26;
 
-import {IToken} from "./interfaces/IToken.sol";
+import {IAIAgentToken} from "./interfaces/IAIAgentToken.sol";
 import {IJamAI} from "./interfaces/IJamAI.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract Token is ERC20, IToken {
+contract AIAgentToken is ERC20, IAIAgentToken {
 
     // Holder => IsClaimed
     mapping(address => bool) public holderClaims;

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0
 pragma solidity ^0.8.26;
 
-import {Token} from "./Token.sol";
+import {AIAgentToken} from "./AIAgentToken.sol";
 import {IJamAI} from "./interfaces/IJamAI.sol";
 import {IJammer} from "./interfaces/IJammer.sol";
 import {Ownable2Step} from "./access/Ownable2Step.sol";
@@ -69,7 +69,7 @@ contract Jammer is Ownable2Step, IJammer {
         bytes32 salt,
         uint256 aiAgentID
     ) external payable onlyJamAI returns (address) {
-        Token token = new Token{
+        AIAgentToken token = new AIAgentToken{
             salt: keccak256(abi.encode(aiAgentID, salt))
         }(
             name, symbol, jamAI, aiAgentID
@@ -91,7 +91,7 @@ contract Jammer is Ownable2Step, IJammer {
         return pool;
     }
 
-    function _createPool(Token token) internal returns (address, uint256) {
+    function _createPool(AIAgentToken token) internal returns (address, uint256) {
         address pool = pancakeV3Factory.createPool(address(token), WETH, POOL_FEE);
 
         uint256 tokenAmountIn = token.balanceOf(address(this));
@@ -171,7 +171,7 @@ contract Jammer is Ownable2Step, IJammer {
         bytes32 create2Salt = keccak256(abi.encode(aiAgentId, salt));
 
         bytes memory packed = abi.encodePacked(
-            type(Token).creationCode,
+            type(AIAgentToken).creationCode,
             abi.encode(name, symbol, address(jamAI), aiAgentId)
         );
 
