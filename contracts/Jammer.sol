@@ -19,7 +19,7 @@ contract Jammer is Ownable2Step, IJammer {
     using TickMath for uint160;
 
     address public feeTo;
-    uint64 public defaultLockingPeriod = 94608000;
+    uint64 public defaultLockingPeriod = 31536000;
 
     IJamAI public jamAI;
     ILPTreasury public lpTreasury;
@@ -206,12 +206,6 @@ contract Jammer is Ownable2Step, IJammer {
     function setLPTreasury(address lpTreasury_) external onlyOwner {
         require(lpTreasury_ != address(0), "LPTreasury cannot be zero address");
         lpTreasury = ILPTreasury(lpTreasury_);
-    }
-
-    function minUsableTick(int24 tickSpacing) internal pure returns (int24) {
-        unchecked {
-            return (TickMath.MIN_TICK / tickSpacing) * tickSpacing;
-        }
     }
 
     function maxUsableTick(int24 tickSpacing) internal pure returns (int24) {
