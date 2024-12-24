@@ -67,12 +67,12 @@ contract Jammer is Ownable2Step, IJammer {
         string calldata name,
         string calldata symbol,
         bytes32 salt,
-        uint256 aiAgentID
+        uint256 aiAgentId
     ) external payable onlyJamAI returns (address) {
         AIAgentToken token = new AIAgentToken{
-            salt: keccak256(abi.encode(aiAgentID, salt))
+            salt: keccak256(abi.encode(aiAgentId, salt))
         }(
-            name, symbol, jamAI, aiAgentID
+            name, symbol, jamAI, aiAgentId
         );
 
         if (address(token) >= WETH) revert InvalidSalt();
@@ -124,19 +124,21 @@ contract Jammer is Ownable2Step, IJammer {
             )
         );
 
-        swapRouter.exactInputSingle{value: ethAmountIn}(IPancakeV3SwapRouter.ExactInputSingleParams(
-            WETH,
-            address(token),
-            POOL_FEE,
-            address(this),
-            block.timestamp,
-            ethAmountIn,
-            0,
-            0
-        ));
-
         positionManager.approve(address(lpTreasury), lpTokenId);
         lpTreasury.lock(lpTokenId, defaultLockingPeriod);
+
+        swapRouter.exactInputSingle{value: ethAmountIn}(
+            IPancakeV3SwapRouter.ExactInputSingleParams(
+                WETH,
+                address(token),
+                POOL_FEE,
+                address(this),
+                block.timestamp,
+                ethAmountIn,
+                0,
+                0
+            )
+        );
 
         token.transfer(address(token), token.balanceOf(address(this)));
         token.initialize();

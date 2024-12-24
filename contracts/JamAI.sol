@@ -144,7 +144,7 @@ contract JamAI is IJamAI, Ownable2Step {
         if (!sellEnabled) revert SellNotEnabled();
 
         uint256 supply = ticketsSupply[aiAgentId];
-        if(ticketsBalance[aiAgentId][msg.sender] < amount) revert InsufficientTicketsToSell();
+        if(amount == 0 || ticketsBalance[aiAgentId][msg.sender] < amount) revert InsufficientTicketsToSell();
         if (amount >= supply) revert LastTicketNotSellable();
 
         ticketsBalance[aiAgentId][msg.sender] = ticketsBalance[aiAgentId][msg.sender] - amount;
