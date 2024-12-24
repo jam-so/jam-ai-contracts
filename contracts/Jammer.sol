@@ -20,7 +20,6 @@ contract Jammer is Ownable2Step, IJammer {
 
     address public feeTo;
     uint64 public defaultLockingPeriod = 94608000;
-    uint24 public immutable POOL_FEE = 10000; // 1%
 
     IJamAI public jamAI;
     ILPTreasury public lpTreasury;
@@ -28,6 +27,8 @@ contract Jammer is Ownable2Step, IJammer {
     address public immutable WETH;
     IPancakeV3Factory public immutable pancakeV3Factory;
     INonfungiblePositionManager public immutable positionManager;
+
+    uint24 public immutable POOL_FEE = 10000;
 
     modifier onlyJamAI() {
         if (msg.sender != address(jamAI))
@@ -77,6 +78,7 @@ contract Jammer is Ownable2Step, IJammer {
         emit TokenCreated(
             address(token),
             lpTokenId,
+            pool,
             name,
             symbol,
             token.totalSupply()
@@ -86,18 +88,19 @@ contract Jammer is Ownable2Step, IJammer {
     }
 
     function _createPool(Token token) internal returns (address, uint256) {
-        int24 tickSpacing = pancakeV3Factory.feeAmountTickSpacing(POOL_FEE);
-        if (tickSpacing == 0) revert InvalidTick();
-
         address pool = pancakeV3Factory.createPool(address(token), WETH, POOL_FEE);
 
         uint256 tokenAmountIn = token.totalSupply() / 2;
         uint256 ethAmountIn = msg.value;
 
-        uint160 sqrtPriceX96 = calcSqrtPriceX96(tokenAmountIn, ethAmountIn);
+        uint256 price = tokenAmountIn * 10**18 / ethAmountIn;
+        uint160 sqrtPriceX96 = uint160(Math.sqrt(price)) * 2**96 / 10**9;
+
         IPancakeV3Pool(pool).initialize(sqrtPriceX96);
 
         token.approve(address(positionManager), tokenAmountIn);
+
+        int24 tickSpacing = pancakeV3Factory.feeAmountTickSpacing(POOL_FEE);
 
         (uint256 lpTokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams(
@@ -124,20 +127,19 @@ contract Jammer is Ownable2Step, IJammer {
         return (pool, lpTokenId);
     }
 
-    function calcSqrtPriceX96(
-        uint256 tokenAmountIn,
-        uint256 ethAmountIn
-    ) internal pure returns (uint160) {
-        uint256 p = tokenAmountIn * 10**18 / ethAmountIn;
-        return uint160(Math.sqrt(p)) / 10**9;
-    }
-
     function deployDataValid(
         uint256 aiAgentID,
-        bytes32 salt,
         string calldata name,
-        string calldata symbol
+        string calldata symbol,
+        bytes32 salt
     ) external view returns (bool) {
+        if (
+            aiAgentID == 0 ||
+            bytes(name).length == 0 ||
+            bytes(symbol).length == 0
+        )
+            return false;
+
         address tokenAddr = predictToken(
             aiAgentID, salt, name, symbol
         );

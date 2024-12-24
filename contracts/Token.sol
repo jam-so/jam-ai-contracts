@@ -77,8 +77,10 @@ contract Token is ERC20, IToken {
     }
 
     function initialize() external {
-        if (msg.sender != address(_jamAI.jammer())) revert NotAuthorized();
-        if (_initialized) revert AlreadyInitialized();
+        if (msg.sender != address(_jamAI.jammer()))
+            revert NotAuthorized();
+        if (_initialized)
+            revert AlreadyInitialized();
 
         _initialized = true;
         _totalClaimable = balanceOf(address(this));

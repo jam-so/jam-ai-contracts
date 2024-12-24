@@ -6,12 +6,12 @@ interface IJammer {
     event TokenCreated(
         address tokenAddress,
         uint256 lpTokenId,
+        address pool,
         string name,
         string symbol,
         uint256 supply
     );
 
-    error InvalidTick();
     error InvalidSalt();
     error Unauthorized();
 
@@ -24,9 +24,9 @@ interface IJammer {
 
     function deployDataValid(
         uint256 aiAgentId,
-        bytes32 salt,
         string calldata name,
-        string calldata symbol
+        string calldata symbol,
+        bytes32 salt
     ) external view returns (bool);
 
     function predictToken(

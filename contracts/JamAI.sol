@@ -52,9 +52,7 @@ contract JamAI is IJamAI, Ownable2Step {
         uint256 sum2 = supply == 0 && amount == 1 ? 0 : (supply + amount - 1) * (supply + amount) * (2 * (supply + amount - 1) + 1) / 6;
         uint256 summation = sum2 - sum1;
 
-        uint256 result = summation * 1 ether * 18 / 100000 + amount * 1 ether * 6 / 100;
-
-        return result;
+        return summation * 1 ether * 18 / 100000 + amount * 1 ether * 6 / 100;
     }
 
     function getBuyPrice(uint256 aiAgentId, uint256 amount) public view returns (uint256) {
@@ -84,11 +82,9 @@ contract JamAI is IJamAI, Ownable2Step {
         if (message.length == 0) revert InvalidMessage();
         if (signature.length != 65) revert InvalidSignature();
 
-        {
-            bytes32 digest = keccak256(message);
-            address recoveredSigner = ECDSA.recover(digest, signature);
-            if (recoveredSigner != tradeApprover) revert InvalidSignature();
-        }
+        bytes32 digest = keccak256(message);
+        address recoveredSigner = ECDSA.recover(digest, signature);
+        if (recoveredSigner != tradeApprover) revert InvalidSignature();
 
         uint256 chainId;
         address contractAddress;
@@ -106,8 +102,7 @@ contract JamAI is IJamAI, Ownable2Step {
         if (contractAddress != address(this)) revert InvalidMessage();
         if (tradeEnabled[aiAgentId]) revert TradeAlreadyEnabled();
 
-        if (bytes(name).length == 0 || bytes(symbol).length == 0) revert InvalidTokenInfo();
-        if (!jammer.deployDataValid(aiAgentId, salt, name, symbol)) revert InvalidTokenInfo();
+        if (!jammer.deployDataValid(aiAgentId, name, symbol, salt)) revert InvalidTokenInfo();
 
         if (creator == address(0) || amount == 0) revert InvalidMessage();
 
@@ -221,16 +216,16 @@ contract JamAI is IJamAI, Ownable2Step {
         sellEnabled = enabled;
     }
 
-    function updateTokenSalt(uint256 aiAgentId, bytes32 newSalt) external onlyOwner {
+    function updateTokenInfo(
+        uint256 aiAgentId,
+        string calldata newName,
+        string calldata newSymbol,
+        bytes32 newSalt
+    ) external onlyOwner {
         if (pools[aiAgentId] != address(0))
             revert PoolLaunched();
 
-        if (!jammer.deployDataValid(
-            aiAgentId,
-            newSalt,
-            tokens[aiAgentId].name,
-            tokens[aiAgentId].symbol
-        ))
+        if (!jammer.deployDataValid(aiAgentId, newName, newSymbol, newSalt))
             revert InvalidTokenInfo();
 
         tokens[aiAgentId].salt = newSalt;
