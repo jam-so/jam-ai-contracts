@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 interface IJammer {
 
     event TokenCreated(
+        uint256 aiAgentId,
         address tokenAddress,
         uint256 lpTokenId,
         address pool,

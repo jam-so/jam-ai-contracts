@@ -80,6 +80,7 @@ contract Jammer is Ownable2Step, IJammer {
         (address pool, uint256 lpTokenId) = _createPool(token);
 
         emit TokenCreated(
+            aiAgentId,
             address(token),
             lpTokenId,
             pool,
