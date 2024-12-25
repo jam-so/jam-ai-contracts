@@ -23,6 +23,8 @@ contract JamAI is IJamAI, Ownable2Step {
     mapping(uint256 => mapping(address => uint256)) public ticketsBalance;
     // AI Agent ID => Pool Address
     mapping(uint256 => address) public pools;
+    // AI Agent ID => Token Address
+    mapping(uint256 => address) public tokens;
     // AI Agent ID => Token Info
     mapping(uint256 => TokenInfo) public preTokenInfo;
 
@@ -168,13 +170,14 @@ contract JamAI is IJamAI, Ownable2Step {
 
         TokenInfo memory tokenInfo = preTokenInfo[aiAgentId];
 
-        address pool = jammer.deployTokenAndPool{value: ethAmountIn}(
+        (address token, address pool) = jammer.deployTokenAndPool{value: ethAmountIn}(
             tokenInfo.name,
             tokenInfo.symbol,
             tokenInfo.salt,
             aiAgentId
         );
 
+        tokens[aiAgentId] = token;
         pools[aiAgentId] = pool;
     }
 

@@ -21,7 +21,7 @@ interface IJammer {
         string calldata symbol,
         bytes32 salt,
         uint256 aiAgentId
-    ) external payable returns (address);
+    ) external payable returns (address, address);
 
     function deployDataValid(
         uint256 aiAgentId,

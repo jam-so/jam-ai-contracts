@@ -68,7 +68,7 @@ contract Jammer is Ownable2Step, IJammer {
         string calldata symbol,
         bytes32 salt,
         uint256 aiAgentId
-    ) external payable onlyJamAI returns (address) {
+    ) external payable onlyJamAI returns (address, address) {
         AIAgentToken token = new AIAgentToken{
             salt: keccak256(abi.encode(aiAgentId, salt))
         }(
@@ -89,7 +89,7 @@ contract Jammer is Ownable2Step, IJammer {
             token.totalSupply()
         );
 
-        return pool;
+        return (address(token), pool);
     }
 
     function _createPool(AIAgentToken token) internal returns (address, uint256) {
