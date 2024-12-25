@@ -86,7 +86,9 @@ contract LPTreasury is Ownable2Step, ERC721Holder, ILPTreasury {
 
         (,, address token0, address token1,,,,,,,,) = positionManager.positions(tokenId);
 
-        emit FeeCollected(tokenId, token0, token1, amount0, amount1);
+        if (amount0 > 0 || amount1 > 0) {
+            emit FeeCollected(tokenId, token0, token1, amount0, amount1);
+        }
     }
 
     function release(uint256 tokenId) external onlyOwner {
