@@ -37,13 +37,16 @@ const config: HardhatUserConfig = {
 
   networks: {
     [chain.BNBChain]: {
-      url: vars.get("BNBChain_RPC_URL"),
+      url: vars.get("BNBCHAIN_RPC_URL"),
+    },
+    [chain.BNBChainTestnet]: {
+      url: vars.get("BNBCHAIN_TESTNET_RPC_URL"),
     },
   },
 
   etherscan: {
     apiKey: {
-      bsc: vars.get("BNBChain_API_KEY"),
+      bsc: vars.get("BNBCHAIN_API_KEY"),
     },
     customChains: [
     ]
