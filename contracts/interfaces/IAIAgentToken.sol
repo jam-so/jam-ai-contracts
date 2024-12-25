@@ -11,7 +11,7 @@ interface IAIAgentToken is IERC20 {
     error NotAuthorized();
 
     function aiAgentId() external view returns (uint256);
-    function claimableAmount() external view returns (uint256);
+    function claimable(address account) external view returns (uint256);
     function claim() external;
 
     function initialize() external;

@@ -44,36 +44,36 @@ contract AIAgentToken is ERC20, IAIAgentToken {
         return _totalClaimable;
     }
 
-    function claimableAmount() external view returns (uint256) {
-        return _claimableAmount();
+    function claimable(address account) external view returns (uint256) {
+        return _claimable(account);
     }
 
     function claim() external {
-        uint256 claimable = _claimableAmount();
-        if (holderClaims[msg.sender] || claimable == 0)
+        uint256 amount = _claimable(msg.sender);
+        if (holderClaims[msg.sender] || amount == 0)
             revert NoClaimableAmount();
 
         holderClaims[msg.sender] = true;
-        transfer(msg.sender, claimable);
+        ERC20(address(this)).transfer(msg.sender, amount);
 
-        emit Claimed(msg.sender, claimable);
+        emit Claimed(msg.sender, amount);
     }
 
-    function _claimableAmount() internal view returns (uint256) {
-        if (holderClaims[msg.sender])
+    function _claimable(address account) internal view returns (uint256) {
+        if (holderClaims[account])
             return 0;
 
         uint256 supply = _jamAI.ticketsSupply(_aiAgentId);
-        uint256 balance = _jamAI.ticketsBalance(_aiAgentId, msg.sender);
+        uint256 balance = _jamAI.ticketsBalance(_aiAgentId, account);
 
-        uint256 claimable = _totalClaimable * balance / supply;
+        uint256 amount = _totalClaimable * balance / supply;
 
         // If this is the last claim.
-        if (balanceOf(address(this))-claimable <= 1) {
-            claimable = balanceOf(address(this));
+        if (balanceOf(address(this))-amount <= 1) {
+            amount = balanceOf(address(this));
         }
 
-        return claimable;
+        return amount;
     }
 
     function initialize() external {
