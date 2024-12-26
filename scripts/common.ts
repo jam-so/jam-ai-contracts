@@ -3,6 +3,7 @@ import { BigNumber } from "bignumber.js";
 import type { REPLServer } from "repl";
 import { isDefinedNetwork } from "../constants";
 import { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/signers";
+import { AddressLike } from "ethers";
 
 declare var global: any;
 let repl: REPLServer;
@@ -129,9 +130,8 @@ async function getAccount0() {
 }
 
 function genBalanceFunc() {
-    (global as any)['balance'] = async () => {
-        const { addr, balance } = await getGlobalAssetBalance();
-
+    (global as any)['balance'] = async (addr_?: any) => {
+        let { addr, balance } = await getGlobalAssetBalance(addr_);
         console.log(`${addr} native asset balance: ${balance}`);
     }
 }
@@ -145,12 +145,13 @@ function genExFunc() {
     }
 }
 
-async function getGlobalAssetBalance() {
-    let rawBalance = await hre.ethers.provider.getBalance(me.address);
+async function getGlobalAssetBalance(addr?: AddressLike) {
+    addr = addr ?? me.address;
+    let rawBalance = await hre.ethers.provider.getBalance(addr);
     let readable = (new BigNumber(rawBalance.toString())).shiftedBy(-18).toFixed();
 
     return {
-        addr: me.address,
+        addr: addr,
         balance: readable
     };
 }
