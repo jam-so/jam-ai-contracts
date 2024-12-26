@@ -135,8 +135,10 @@ contract JamAI is IJamAI, Ownable2Step {
 
         emit Trade(buyer, aiAgentId, true, amount, price, protocolFee, supply + amount);
 
-        (bool success, ) = feeTo.call{value: protocolFee}("");
-        if(!success) revert TransferFailed();
+        if (price > 0) {
+            (bool success, ) = feeTo.call{value: msg.value - price}("");
+            if(!success) revert TransferFailed();
+        }
     }
 
     function sellTickets(uint256 aiAgentId, uint256 amount) external {
