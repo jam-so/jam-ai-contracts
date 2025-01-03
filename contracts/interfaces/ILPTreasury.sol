@@ -12,6 +12,10 @@ interface ILPTreasury {
         uint256 amount1
     );
 
+    event TokenRescued(address token, uint256 tokenId, address receiver);
+    event SetFeeTo(address feeTo);
+    event SetTokenRecipient(address tokenRecipient);
+
     error RescueNotAllowed();
     error InvalidDuration();
     error TokenAlreadyLocked();

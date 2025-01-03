@@ -193,20 +193,24 @@ contract Jammer is Ownable2Step, IJammer {
     function setFeeTo(address feeTo_) external onlyOwner {
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
         feeTo = feeTo_;
+        emit SetFeeTo(feeTo_);
     }
 
     function setDefaultLockingPeriod(uint64 defaultLockingPeriod_) external onlyOwner {
         defaultLockingPeriod = defaultLockingPeriod_;
+        emit SetDefaultLockingPeriod(defaultLockingPeriod_);
     }
 
     function setJamAI(address jamAI_) external onlyOwner {
         require(jamAI_ != address(0), "JamAI cannot be zero address");
         jamAI = IJamAI(jamAI_);
+        emit SetJamAI(jamAI_);
     }
 
     function setLPTreasury(address lpTreasury_) external onlyOwner {
         require(lpTreasury_ != address(0), "LPTreasury cannot be zero address");
         lpTreasury = ILPTreasury(lpTreasury_);
+        emit SetLPTreasury(lpTreasury_);
     }
 
     function maxUsableTick(int24 tickSpacing) internal pure returns (int24) {

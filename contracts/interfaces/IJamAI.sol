@@ -15,6 +15,14 @@ interface IJamAI {
         uint256 supply
     );
 
+    event SetFeeTo(address feeTo);
+    event SetJammer(address jammer);
+    event SetTradeApprover(address tradeApprover);
+    event SetBuyFeeRate(uint256 buyFeeRate);
+    event SetSellFeeRate(uint256 sellFeeRate);
+    event SetThreshold(uint256 threshold);
+    event SetSellEnabled(bool enabled);
+
     struct TokenInfo {
         string name;
         string symbol;

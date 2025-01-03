@@ -13,6 +13,11 @@ interface IJammer {
         uint256 supply
     );
 
+    event SetFeeTo(address feeTo);
+    event SetDefaultLockingPeriod(uint64 defaultLockingPeriod);
+    event SetJamAI(address jamAI);
+    event SetLPTreasury(address lpTreasury);
+
     error InvalidSalt();
     error Unauthorized();
 

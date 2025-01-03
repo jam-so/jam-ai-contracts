@@ -187,38 +187,47 @@ contract JamAI is IJamAI, Ownable2Step {
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
 
         feeTo = feeTo_;
+        emit SetFeeTo(feeTo_);
     }
 
     function setJammer(address jammer_) external onlyOwner {
         require(jammer_ != address(0), "Jammer cannot be zero address");
+
         jammer = IJammer(jammer_);
+        emit SetJammer(jammer_);
     }
 
     function setTradeApprover(address newApprover) external onlyOwner {
         require(newApprover != address(0), "TradeApprover cannot be zero address");
 
         tradeApprover = newApprover;
+        emit SetTradeApprover(newApprover);
     }
 
     function setBuyFeeRate(uint256 feeRate) external onlyOwner {
         require(feeRate <= 1000, "Invalid fee rate");
 
         buyFeeRate = feeRate;
+        emit SetBuyFeeRate(feeRate);
     }
 
     function setSellFeeRate(uint256 feeRate) external onlyOwner {
         require(feeRate <= 1000, "Invalid fee rate");
 
         sellFeeRate = feeRate;
+        emit SetSellFeeRate(feeRate);
     }
 
     function setThreshold(uint256 newThreshold) external onlyOwner {
         require(newThreshold > 0, "Invalid threshold");
+
         threshold = newThreshold;
+        emit SetThreshold(newThreshold);
     }
 
     function setSellEnabled(bool enabled) external onlyOwner {
         sellEnabled = enabled;
+        emit SetSellEnabled(enabled);
     }
 
     function updateTokenInfo(

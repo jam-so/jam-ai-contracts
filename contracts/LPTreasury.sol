@@ -105,15 +105,18 @@ contract LPTreasury is Ownable2Step, ERC721Holder, ILPTreasury {
             revert RescueNotAllowed();
 
         token.transferFrom(address(this), receiver, tokenId);
+        emit TokenRescued(address(token), tokenId, receiver);
     }
 
     function setFeeTo(address feeTo_) external onlyOwner {
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
         feeTo = feeTo_;
+        emit SetFeeTo(feeTo_);
     }
 
     function setTokenRecipient(address tokenRecipient_) external onlyOwner {
         require(tokenRecipient_ != address(0), "TokenRecipient cannot be zero address");
         tokenRecipient = tokenRecipient_;
+        emit SetTokenRecipient(tokenRecipient_);
     }
 }
