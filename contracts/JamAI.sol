@@ -5,8 +5,9 @@ import { IJamAI } from "./interfaces/IJamAI.sol";
 import { IJammer } from "./interfaces/IJammer.sol";
 import { Ownable2Step } from "./access/Ownable2Step.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-contract JamAI is IJamAI, Ownable2Step {
+contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
 
     address public feeTo;
     IJammer public jammer;
@@ -141,7 +142,7 @@ contract JamAI is IJamAI, Ownable2Step {
         }
     }
 
-    function sellTickets(uint256 aiAgentId, uint256 amount) external {
+    function sellTickets(uint256 aiAgentId, uint256 amount) external nonReentrant {
         if (!tradeEnabled[aiAgentId]) revert TradeNotEnabled();
         if (pools[aiAgentId] != address(0)) revert PoolLaunched();
 
