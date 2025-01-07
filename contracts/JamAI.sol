@@ -243,6 +243,8 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
         if (!jammer.deployDataValid(aiAgentId, newName, newSymbol, newSalt))
             revert InvalidTokenInfo();
 
+        preTokenInfo[aiAgentId].name = newName;
+        preTokenInfo[aiAgentId].symbol = newSymbol;
         preTokenInfo[aiAgentId].salt = newSalt;
     }
 }
