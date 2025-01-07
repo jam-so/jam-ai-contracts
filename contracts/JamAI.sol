@@ -101,6 +101,10 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
             message, (uint256, address, uint256, string, string, bytes32, address, uint256)
         );
 
+        // Re-encode the decoded variables to check if the message is valid.
+        bytes memory message2 = abi.encode(chainId, contractAddress, aiAgentId, name, symbol, salt, creator, amount);
+        if (keccak256(message2) != digest) revert InvalidMessage();
+
         if (chainId != block.chainid) revert InvalidMessage();
         if (contractAddress != address(this)) revert InvalidMessage();
         if (tradeEnabled[aiAgentId]) revert TradeAlreadyEnabled();
