@@ -15,6 +15,7 @@ contract AIAgentToken is ERC20, IAIAgentToken {
 
     bool private _initialized;
     uint256 private _totalClaimable;
+    uint256 private _claimedSupply;
 
     uint256 public immutable TOTAL_SUPPLY = 10**29;
 
@@ -55,6 +56,7 @@ contract AIAgentToken is ERC20, IAIAgentToken {
 
         holderClaims[msg.sender] = true;
         ERC20(address(this)).transfer(msg.sender, amount);
+        _claimedSupply += _jamAI.ticketsBalance(_aiAgentId, msg.sender);
 
         emit Claimed(msg.sender, amount);
     }
@@ -69,7 +71,7 @@ contract AIAgentToken is ERC20, IAIAgentToken {
         uint256 amount = _totalClaimable * balance / supply;
 
         // If this is the last claim.
-        if (balanceOf(address(this))-amount <= 1) {
+        if (_claimedSupply + balance == supply) {
             amount = balanceOf(address(this));
         }
 
