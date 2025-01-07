@@ -6,6 +6,7 @@ import {IERC721Enumerable} from '@openzeppelin/contracts/token/ERC721/extensions
 interface IPancakeV3Factory {
     function createPool(address tokenA, address tokenB, uint24 fee) external returns (address pool);
     function feeAmountTickSpacing(uint24 fee) external view returns (int24);
+    function getPool(address tokenA, address tokenB, uint24 fee) external view returns (address pool);
 }
 
 interface IPancakeV3Pool {

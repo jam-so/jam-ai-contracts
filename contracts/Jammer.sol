@@ -69,13 +69,7 @@ contract Jammer is Ownable2Step, IJammer {
         bytes32 salt,
         uint256 aiAgentId
     ) external payable onlyJamAI returns (address, address) {
-        AIAgentToken token = new AIAgentToken{
-            salt: keccak256(abi.encode(aiAgentId, salt))
-        }(
-            name, symbol, jamAI, aiAgentId
-        );
-
-        if (address(token) >= WETH) revert InvalidSalt();
+        AIAgentToken token = _deployToken(name, symbol, salt, aiAgentId);
 
         (address pool, uint256 lpTokenId) = _createPool(token);
 
@@ -90,6 +84,34 @@ contract Jammer is Ownable2Step, IJammer {
         );
 
         return (address(token), pool);
+    }
+
+    function _deployToken(
+        string calldata name,
+        string calldata symbol,
+        bytes32 salt,
+        uint256 aiAgentId
+    ) internal returns (AIAgentToken token) {
+        // Usually, the token will be deployed successfully in the first try
+        // using the pre calculated salt.
+        for (uint256 i = 0; i < 256;) {
+            token = new AIAgentToken{
+                salt: keccak256(abi.encode(aiAgentId, salt))
+            }(
+                name, symbol, jamAI, aiAgentId
+            );
+
+            if (address(token) < WETH) {
+                address pool = pancakeV3Factory.getPool(address(token), WETH, POOL_FEE);
+                if (pool == address(0)) return token;
+            }
+
+            salt = keccak256(abi.encode(salt, i+1));
+
+            unchecked { i++; }
+        }
+
+        revert InvalidSalt();
     }
 
     function _createPool(AIAgentToken token) internal returns (address, uint256) {
