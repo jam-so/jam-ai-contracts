@@ -22,6 +22,7 @@ interface IJamAI {
     event SetSellFeeRate(uint256 sellFeeRate);
     event SetThreshold(uint256 threshold);
     event SetSellEnabled(bool enabled);
+    event UpdateTokenInfo(uint256 aiAgentId, string name, string symbol, bytes32 salt);
 
     struct TokenInfo {
         string name;

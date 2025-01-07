@@ -250,5 +250,7 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
         preTokenInfo[aiAgentId].name = newName;
         preTokenInfo[aiAgentId].symbol = newSymbol;
         preTokenInfo[aiAgentId].salt = newSalt;
+
+        emit UpdateTokenInfo(aiAgentId, newName, newSymbol, newSalt);
     }
 }
