@@ -95,18 +95,21 @@ contract Jammer is Ownable2Step, IJammer {
         // Usually, the token will be deployed successfully in the first try
         // using the pre calculated salt.
         for (uint256 i = 0; i < 256;) {
-            token = new AIAgentToken{
-                salt: keccak256(abi.encode(aiAgentId, salt))
-            }(
-                name, symbol, jamAI, aiAgentId
-            );
+            address tokenAddr = predictToken(aiAgentId, name, symbol, salt);
 
-            if (address(token) < WETH) {
-                address pool = pancakeV3Factory.getPool(address(token), WETH, POOL_FEE);
-                if (pool == address(0)) return token;
+            if (tokenAddr < WETH) {
+                address pool = pancakeV3Factory.getPool(tokenAddr, WETH, POOL_FEE);
+                if (pool == address(0)) {
+                    token = new AIAgentToken{
+                        salt: keccak256(abi.encode(aiAgentId, salt))
+                    }(
+                        name, symbol, jamAI, aiAgentId
+                    );
+                    return token;
+                }
             }
 
-            salt = keccak256(abi.encode(salt, i+1));
+            salt = keccak256(abi.encode(salt, gasleft()));
 
             unchecked { i++; }
         }
@@ -187,7 +190,7 @@ contract Jammer is Ownable2Step, IJammer {
         return tokenAddr < WETH;
     }
 
-     function predictToken(
+    function predictToken(
         uint256 aiAgentId,
         string calldata name,
         string calldata symbol,
