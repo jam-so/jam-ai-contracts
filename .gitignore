@@ -9,7 +9,7 @@ typechain-types
 cache
 artifacts
 .private_key
-readPrivKey.ts
+importPrivateKey.ts
 
 # Chore
 yarn-error.log

@@ -1,7 +1,6 @@
 import "@nomicfoundation/hardhat-toolbox";
 import { HardhatUserConfig } from "hardhat/config";
 import { existsSync, readFileSync } from 'fs';
-import { chain, chainID } from "./constants";
 import { vars } from "hardhat/config";
 
 const privKeyFile = '.private_key'
@@ -16,9 +15,6 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: "0.4.18",
-      },
-      {
         version: "0.8.26",
         settings: {
           optimizer: {
@@ -30,17 +26,18 @@ const config: HardhatUserConfig = {
     ],
   },
 
-  typechain: {
-    outDir: "typechain-types",
-    target: "ethers-v6",
-  },
-
   networks: {
-    [chain.BNBChain]: {
-      url: vars.get("BNBCHAIN_RPC_URL"),
+    "localhost": {
+      chainId: 31337,
     },
-    [chain.BNBChainTestnet]: {
+    "BNBChain": {
+      url: vars.get("BNBCHAIN_RPC_URL"),
+      chainId: 56,
+      gasPrice: 1e9,
+    },
+    "BNBChainTestnet": {
       url: vars.get("BNBCHAIN_TESTNET_RPC_URL"),
+      chainId: 97,
     },
   },
 
@@ -48,20 +45,7 @@ const config: HardhatUserConfig = {
     apiKey: {
       bsc: vars.get("BNBCHAIN_API_KEY"),
     },
-    customChains: [
-    ]
   },
 };
-
-
-for (var net in config.networks) {
-  if (net == 'hardhat') continue;
-
-  config.networks[net]!.chainId = chainID[net as keyof typeof chainID];
-
-  if (privateKey != '') {
-    config.networks[net]!.accounts = [privateKey]
-  }
-}
 
 export default config;
