@@ -3,7 +3,7 @@
 pragma solidity ^0.8.26;
 
 import {ILPTreasury} from "./interfaces/ILPTreasury.sol";
-import {Ownable2Step} from "./access/Ownable2Step.sol";
+import {Ownable2Step} from "./roles/Ownable2Step.sol";
 import {ERC721Holder} from "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 import {INonfungiblePositionManager} from "./interfaces/IPancakeV3.sol";
 import {IERC721} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";

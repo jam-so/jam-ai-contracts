@@ -4,10 +4,11 @@ pragma solidity ^0.8.26;
 import {AIAgentToken} from "./AIAgentToken.sol";
 import {IJamAI} from "./interfaces/IJamAI.sol";
 import {IJammer} from "./interfaces/IJammer.sol";
-import {Ownable2Step} from "./access/Ownable2Step.sol";
+import {Ownable2Step} from "./roles/Ownable2Step.sol";
 import {TickMath} from "./libraries/TickMath.sol";
 import {ILPTreasury} from "./interfaces/ILPTreasury.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {
     IPancakeV3Factory,
     IPancakeV3Pool,
@@ -18,13 +19,12 @@ import {
 contract Jammer is Ownable2Step, IJammer {
     using TickMath for uint160;
 
-    address public feeTo;
     uint64 public defaultLockingPeriod = 31536000;
 
+    IERC20 public immutable jam;
     IJamAI public jamAI;
     ILPTreasury public lpTreasury;
 
-    address public immutable WETH;
     IPancakeV3Factory public immutable pancakeV3Factory;
     INonfungiblePositionManager public immutable positionManager;
     IPancakeV3SwapRouter public immutable swapRouter;
@@ -38,40 +38,39 @@ contract Jammer is Ownable2Step, IJammer {
     }
 
     constructor(
-        address feeTo_,
         address jamAI_,
         address lpTreasury_,
-        address WETH_,
-        address pancakeV3Factory_,
         address positionManager_,
         address swapRouter_
     ) {
-        require(feeTo_ != address(0), "FeeTo cannot be zero address");
         require(jamAI_ != address(0), "JamAI cannot be zero address");
         require(lpTreasury_ != address(0), "LPTreasury cannot be zero address");
-        require(WETH_ != address(0), "WETH cannot be zero address");
-        require(pancakeV3Factory_ != address(0), "PancakeV3Factory cannot be zero address");
         require(positionManager_ != address(0), "PositionManager cannot be zero address");
         require(swapRouter_ != address(0), "SwapRouter cannot be zero address");
 
-        feeTo = feeTo_;
         jamAI = IJamAI(jamAI_);
         lpTreasury = ILPTreasury(lpTreasury_);
-        WETH = WETH_;
-        pancakeV3Factory = IPancakeV3Factory(pancakeV3Factory_);
         positionManager = INonfungiblePositionManager(positionManager_);
         swapRouter = IPancakeV3SwapRouter(swapRouter_);
+        pancakeV3Factory = IPancakeV3Factory(swapRouter.factory());
+        jam = IERC20(jamAI.jam());
+
+        require(
+            swapRouter.factory() == positionManager.factory(),
+            "SwapRouter and PositionManager factory mismatch"
+        );
     }
 
     function deployTokenAndPool(
+        uint256 jamAmountIn,
         string calldata name,
         string calldata symbol,
         bytes32 salt,
         uint256 aiAgentId
-    ) external payable onlyJamAI returns (address, address) {
+    ) external onlyJamAI returns (address, address) {
         AIAgentToken token = _deployToken(name, symbol, salt, aiAgentId);
 
-        (address pool, uint256 lpTokenId) = _createPool(token);
+        (address pool, uint256 lpTokenId) = _createPool(token, jamAmountIn);
 
         emit TokenCreated(
             aiAgentId,
@@ -97,8 +96,8 @@ contract Jammer is Ownable2Step, IJammer {
         for (uint256 i = 0; i < 256;) {
             address tokenAddr = predictToken(aiAgentId, name, symbol, salt);
 
-            if (tokenAddr < WETH) {
-                address pool = pancakeV3Factory.getPool(tokenAddr, WETH, POOL_FEE);
+            if (tokenAddr < address(jam)) {
+                address pool = pancakeV3Factory.getPool(tokenAddr, address(jam), POOL_FEE);
                 if (pool == address(0)) {
                     token = new AIAgentToken{
                         salt: keccak256(abi.encode(aiAgentId, salt))
@@ -117,13 +116,15 @@ contract Jammer is Ownable2Step, IJammer {
         revert InvalidSalt();
     }
 
-    function _createPool(AIAgentToken token) internal returns (address, uint256) {
-        address pool = pancakeV3Factory.createPool(address(token), WETH, POOL_FEE);
+    function _createPool(
+        AIAgentToken token,
+        uint256 jamAmountIn
+    ) internal returns (address, uint256) {
+        address pool = pancakeV3Factory.createPool(address(token), address(jam), POOL_FEE);
 
         uint256 tokenAmountIn = token.balanceOf(address(this));
-        uint256 ethAmountIn = msg.value;
 
-        uint256 p = ethAmountIn * 10**18 / tokenAmountIn;
+        uint256 p = jamAmountIn * 10**18 / tokenAmountIn;
         uint160 sqrtPriceX96 = uint160(Math.sqrt(p) * 2**96 / 10**9);
 
         int24 initialTick = sqrtPriceX96.getTickAtSqrtRatio();
@@ -137,7 +138,7 @@ contract Jammer is Ownable2Step, IJammer {
         (uint256 lpTokenId, , , ) = positionManager.mint(
             INonfungiblePositionManager.MintParams(
                 address(token),
-                WETH,
+                address(jam),
                 POOL_FEE,
                 initialTick,
                 maxUsableTick(tickSpacing),
@@ -153,14 +154,15 @@ contract Jammer is Ownable2Step, IJammer {
         positionManager.approve(address(lpTreasury), lpTokenId);
         lpTreasury.lock(lpTokenId, defaultLockingPeriod);
 
-        swapRouter.exactInputSingle{value: ethAmountIn}(
+        jam.approve(address(swapRouter), jamAmountIn);
+        swapRouter.exactInputSingle(
             IPancakeV3SwapRouter.ExactInputSingleParams(
-                WETH,
+                address(jam),
                 address(token),
                 POOL_FEE,
                 address(this),
                 block.timestamp,
-                ethAmountIn,
+                jamAmountIn,
                 0,
                 0
             )
@@ -187,7 +189,7 @@ contract Jammer is Ownable2Step, IJammer {
 
         address tokenAddr = predictToken(aiAgentID, name, symbol, salt);
 
-        return tokenAddr < WETH;
+        return tokenAddr < address(jam);
     }
 
     function predictToken(
@@ -213,12 +215,6 @@ contract Jammer is Ownable2Step, IJammer {
         );
 
         return address(uint160(uint256(data)));
-    }
-
-    function setFeeTo(address feeTo_) external onlyOwner {
-        require(feeTo_ != address(0), "FeeTo cannot be zero address");
-        feeTo = feeTo_;
-        emit SetFeeTo(feeTo_);
     }
 
     function setDefaultLockingPeriod(uint64 defaultLockingPeriod_) external onlyOwner {

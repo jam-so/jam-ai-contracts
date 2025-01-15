@@ -2,6 +2,7 @@
 pragma solidity ^0.8.26;
 
 import {IJammer} from "./IJammer.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IJamAI {
 
@@ -10,7 +11,7 @@ interface IJamAI {
         uint256 aiAgentId,
         bool isBuy,
         uint256 amount,
-        uint256 ethAmount,
+        uint256 price,
         uint256 protocolFee,
         uint256 supply
     );
@@ -36,7 +37,6 @@ interface IJamAI {
     error InvalidSignature();
     error TradeAlreadyEnabled();
     error InsufficientPayment();
-    error TransferFailed();
     error InsufficientTicketsToSell();
     error PoolAlreadyCreated();
     error InsufficientTicketsForPool();
@@ -44,6 +44,7 @@ interface IJamAI {
     error SellNotEnabled();
     error LastTicketNotSellable();
 
+    function jam() external view returns (IERC20);
     function jammer() external returns (IJammer);
 
     function ticketsSupply(uint256 aiAgentId) external view returns (uint256);
@@ -55,7 +56,7 @@ interface IJamAI {
     function getBuyPriceWithFee(uint256 aiAgentId, uint256 amount) external view returns (uint256);
     function getSellPriceWithFee(uint256 aiAgentId, uint256 amount) external view returns (uint256);
 
-    function startTrading(bytes calldata message, bytes calldata signature) external payable;
-    function buyTickets(uint256 aiAgentId, uint256 amount) external payable;
+    function startTrading(bytes calldata message, bytes calldata signature) external;
+    function buyTickets(uint256 aiAgentId, uint256 amount) external;
     function sellTickets(uint256 aiAgentId, uint256 amount) external;
 }

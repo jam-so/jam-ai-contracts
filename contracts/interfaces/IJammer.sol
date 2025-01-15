@@ -13,7 +13,6 @@ interface IJammer {
         uint256 supply
     );
 
-    event SetFeeTo(address feeTo);
     event SetDefaultLockingPeriod(uint64 defaultLockingPeriod);
     event SetJamAI(address jamAI);
     event SetLPTreasury(address lpTreasury);
@@ -22,11 +21,12 @@ interface IJammer {
     error Unauthorized();
 
     function deployTokenAndPool(
+        uint256 jamAmountIn,
         string calldata name,
         string calldata symbol,
         bytes32 salt,
         uint256 aiAgentId
-    ) external payable returns (address, address);
+    ) external returns (address, address);
 
     function deployDataValid(
         uint256 aiAgentId,

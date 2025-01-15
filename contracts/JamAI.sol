@@ -3,12 +3,16 @@ pragma solidity ^0.8.26;
 
 import { IJamAI } from "./interfaces/IJamAI.sol";
 import { IJammer } from "./interfaces/IJammer.sol";
-import { Ownable2Step } from "./access/Ownable2Step.sol";
+import { Ownable2Step } from "./roles/Ownable2Step.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
+    IERC20 public immutable jam;
     address public feeTo;
     IJammer public jammer;
     address public tradeApprover;
@@ -32,14 +36,17 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
     bool public sellEnabled = false;
 
     constructor(
+        address jam_,
         address feeTo_,
         address tradeApprover_
     ) {
+        require(jam_ != address(0), "Jam cannot be zero address");
         require(feeTo_ != address(0), "FeeTo cannot be zero address");
         require(tradeApprover_ != address(0), "TradeApprover cannot be zero address");
 
         feeTo = feeTo_;
         tradeApprover = tradeApprover_;
+        jam = IERC20(jam_);
     }
 
     function getPrice(uint256 supply, uint256 amount) public pure returns (uint256) {
@@ -55,7 +62,7 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
         uint256 sum2 = supply == 0 && amount == 1 ? 0 : (supply + amount - 1) * (supply + amount) * (2 * (supply + amount - 1) + 1) / 6;
         uint256 summation = sum2 - sum1;
 
-        return summation * 1 ether * 18 / 100000 + amount * 1 ether * 6 / 100;
+        return summation * 1 ether * 60 + amount * 1 ether * 20000;
     }
 
     function getBuyPrice(uint256 aiAgentId, uint256 amount) public view returns (uint256) {
@@ -81,7 +88,7 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
     function startTrading(
         bytes calldata message,
         bytes calldata signature
-    ) external payable {
+    ) external {
         if (message.length == 0) revert InvalidMessage();
         if (signature.length != 65) revert InvalidSignature();
 
@@ -122,7 +129,7 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
         _buyTickets(msg.sender, aiAgentId, amount);
     }
 
-    function buyTickets(uint256 aiAgentId, uint256 amount) external payable {
+    function buyTickets(uint256 aiAgentId, uint256 amount) external {
         _buyTickets(msg.sender, aiAgentId, amount);
     }
 
@@ -133,16 +140,21 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
         uint256 supply = ticketsSupply[aiAgentId];
         uint256 price = getPrice(supply, amount);
         uint256 protocolFee = price * buyFeeRate / 1000;
-        if (msg.value < price + protocolFee) revert InsufficientPayment();
+
+        if (price > 0) {
+            uint256 balanceBefore = jam.balanceOf(address(this));
+            jam.safeTransferFrom(buyer, address(this), price + protocolFee);
+            uint256 balanceAfter = jam.balanceOf(address(this));
+            if (balanceAfter - balanceBefore != price + protocolFee) revert InsufficientPayment();
+        }
 
         ticketsBalance[aiAgentId][buyer] = ticketsBalance[aiAgentId][buyer] + amount;
         ticketsSupply[aiAgentId] = supply + amount;
 
         emit Trade(buyer, aiAgentId, true, amount, price, protocolFee, supply + amount);
 
-        if (price > 0) {
-            (bool success, ) = feeTo.call{value: msg.value - price}("");
-            if(!success) revert TransferFailed();
+        if (protocolFee > 0) {
+            jam.safeTransfer(feeTo, protocolFee);
         }
     }
 
@@ -164,20 +176,24 @@ contract JamAI is IJamAI, Ownable2Step, ReentrancyGuard {
 
         emit Trade(msg.sender, aiAgentId, false, amount, price, protocolFee, supply - amount);
 
-        (bool success1, ) = msg.sender.call{value: price - protocolFee}("");
-        (bool success2, ) = feeTo.call{value: protocolFee}("");
-        if(!success1 || !success2) revert TransferFailed();
+        jam.safeTransfer(msg.sender, price - protocolFee);
+
+        if (protocolFee > 0) {
+            jam.safeTransfer(feeTo, protocolFee);
+        }
     }
 
     function activatePool(uint256 aiAgentId) external {
         if (pools[aiAgentId] != address(0)) revert PoolAlreadyCreated();
         if (ticketsSupply[aiAgentId] < threshold) revert InsufficientTicketsForPool();
 
-        uint256 ethAmountIn = getPrice(0, ticketsSupply[aiAgentId]);
+        uint256 jamAmountIn = getPrice(0, ticketsSupply[aiAgentId]);
 
         TokenInfo memory tokenInfo = preTokenInfo[aiAgentId];
 
-        (address token, address pool) = jammer.deployTokenAndPool{value: ethAmountIn}(
+        jam.transfer(address(jammer), jamAmountIn);
+        (address token, address pool) = jammer.deployTokenAndPool(
+            jamAmountIn,
             tokenInfo.name,
             tokenInfo.symbol,
             tokenInfo.salt,

@@ -28,6 +28,8 @@ interface IPancakeV3SwapRouter {
     function exactInputSingle(
         ExactInputSingleParams calldata params
     ) external payable returns (uint256 amountOut);
+
+    function factory() external view returns (address);
 }
 
 interface INonfungiblePositionManager is IERC721Enumerable {
@@ -87,4 +89,5 @@ interface INonfungiblePositionManager is IERC721Enumerable {
     ) external payable returns (uint256 amount0, uint256 amount1);
 
     function safeTransferFrom(address from, address to, uint256 tokenId) external;
+    function factory() external view returns (address);
 }
