@@ -19,7 +19,7 @@ import {
 contract Jammer is Ownable2Step, IJammer {
     using TickMath for uint160;
 
-    uint64 public defaultLockingPeriod = 31536000;
+    uint64 public defaultLockingPeriod = 15552000;
 
     IERC20 public immutable jam;
     IJamAI public jamAI;
